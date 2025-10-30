@@ -60,22 +60,35 @@ def smart_read_csv(path: Path) -> pd.DataFrame:
     raise RuntimeError("Impossibile leggere il CSV.")
 
 def pick_numeric_xy(df: pd.DataFrame, x_col: Optional[str]=None, y_col: Optional[str]=None) -> Tuple[pd.Series, pd.Series, List[str]]:
+    # 1) Se specificate, usa quelle colonne (e coerci a numerico)
     if x_col and y_col:
         x = robust_coerce_numeric(df[x_col])
         y = robust_coerce_numeric(df[y_col])
-        mask = x.notna() & y.notna()
-        return x[mask].reset_index(drop=True), y[mask].reset_index(drop=True), [x_col, y_col]
+        m = x.notna() & y.notna()
+        return x[m].reset_index(drop=True), y[m].reset_index(drop=True), [x_col, y_col]
 
-    # altrimenti scelgo automaticamente le due migliori colonne numeriche
-    coerced = {c: robust_coerce_numeric(df[c]) for c in df.columns}
-    scores = sorted([(coerced[c].notna().mean(), c) for c in df.columns], reverse=True)
-    if len(scores) < 2:
+    # 2) Se il file ha esattamente 2 colonne, prendile in ordine: prima -> x, seconda -> y
+    if df.shape[1] >= 2:
+        c1, c2 = df.columns[0], df.columns[1]
+        x = robust_coerce_numeric(df[c1])
+        y = robust_coerce_numeric(df[c2])
+        m = x.notna() & y.notna()
+        return x[m].reset_index(drop=True), y[m].reset_index(drop=True), [c1, c2]
+
+    # 3) Fallback: cerca le prime due colonne "sufficientemente numeriche" nell’ordine originale
+    numeric_cols = []
+    for c in df.columns:
+        s = robust_coerce_numeric(df[c])
+        if s.notna().mean() > 0.2:   # almeno ~20% di valori numerici
+            numeric_cols.append((c, s))
+        if len(numeric_cols) == 2:
+            break
+    if len(numeric_cols) < 2:
         raise ValueError("Meno di due colonne utili.")
-    c1, c2 = scores[0][1], scores[1][1]
-    x = coerced[c1]
-    y = coerced[c2]
+    (c1, x), (c2, y) = numeric_cols
     m = x.notna() & y.notna()
     return x[m].reset_index(drop=True), y[m].reset_index(drop=True), [c1, c2]
+
 
 # --------- Selezione grado con AICc + fit robusto (sigma-clipping) ---------
 def polyfit_aicc(x: np.ndarray, y: np.ndarray, deg: int):
