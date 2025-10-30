@@ -1,0 +1,8 @@
+pyproject.toml
+mialibreria/__init__.py
+mialibreria/funzioni.py
+mialibreria/polynomial_fit.py
+mialibreria.egg-info/PKG-INFO
+mialibreria.egg-info/SOURCES.txt
+mialibreria.egg-info/dependency_links.txt
+mialibreria.egg-info/top_level.txt
