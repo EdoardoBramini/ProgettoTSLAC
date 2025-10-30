@@ -164,7 +164,3 @@ def run_pipeline(
     plt.show()
 
     return coeff, deg, keep, (out_clean, out_expanded)
-
-if __name__ == "__main__":
-    # Esempio d'uso: cambia 'cristo.csv' col tuo percorso
-    run_pipeline("Profile3.csv", x_col=None, y_col=None, max_deg=8, sigma=3.0)
