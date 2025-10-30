@@ -25,24 +25,38 @@ def robust_coerce_numeric(s: pd.Series) -> pd.Series:
     return s.apply(to_num)
 
 def smart_read_csv(path: Path) -> pd.DataFrame:
+    # Prove senza header esplicito (il tuo file ha solo numeri)
     tries = [
-        dict(sep=None, engine="python"),
+        dict(sep=r";\s*", engine="python", header=None),  # ; seguito da spazi/tab  <<-- il tuo caso
+        dict(sep=r"[;,\t]\s*", engine="python", header=None),  # più permissiva
+        dict(sep=";", engine="python", header=None),
+        dict(sep="\t", engine="python", header=None),
+        dict(sep=r"\s+", engine="python", header=None),
+        dict(sep=None, engine="python", header=None),
+        # Fallback: lascia inferire un eventuale header
+        dict(sep=r";\s*", engine="python"),
         dict(sep=";", engine="python"),
         dict(sep=",", engine="python"),
         dict(sep="\t", engine="python"),
         dict(sep=r"\s+", engine="python"),
+        dict(sep=None, engine="python"),
     ]
     for kw in tries:
         try:
-            return pd.read_csv(path, **kw)
+            df = pd.read_csv(path, on_bad_lines="skip", **kw)
+            if kw.get("header", None) is None and df.shape[1] == 2:
+                df.columns = ["x", "y"]
+            return df
         except Exception:
             continue
-    # ultimo tentativo senza header
-    for kw in tries:
+
+    # Ultimo tentativo: se fosse un Excel
+    if path.suffix.lower() in {".xlsx", ".xls"}:
         try:
-            return pd.read_csv(path, header=None, **kw)
+            return pd.read_excel(path, engine="openpyxl")
         except Exception:
-            continue
+            return pd.read_excel(path)
+
     raise RuntimeError("Impossibile leggere il CSV.")
 
 def pick_numeric_xy(df: pd.DataFrame, x_col: Optional[str]=None, y_col: Optional[str]=None) -> Tuple[pd.Series, pd.Series, List[str]]:
